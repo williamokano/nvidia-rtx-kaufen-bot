@@ -4,18 +4,34 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
-	"github.com/caarlos0/env/v6"
 	"github.com/williamokano/nvidia-rtx-kaufen-bot/pkg/bot"
 )
 
 func main() {
-	var cfg bot.Config
-	if err := env.Parse(&cfg); err != nil {
-		fmt.Println("missing parameters")
+	botToken, exist := os.LookupEnv("TELEGRAM_BOT_TOKEN")
+	if !exist {
+		fmt.Println("TELEGRAM_BOT_TOKEN environment variable not set")
 		os.Exit(1)
 	}
+
+	subscribersList := make(map[int64]bool)
+	if subsParam, exist := os.LookupEnv("TELEGRAM_SUBSCRIBERS"); exist {
+		subs := strings.Split(subsParam, ",")
+		for _, sub := range subs {
+			convertedChannelID, err := strconv.Atoi(sub)
+			if err != nil {
+				fmt.Println("Error converting channel id to int")
+			}
+
+			subscribersList[int64(convertedChannelID)] = true
+		}
+	}
+
+	var telegramBot = bot.NewBot(botToken, subscribersList)
 
 	for {
 		res, err := bot.CheckAPI()
@@ -23,7 +39,7 @@ func main() {
 			fmt.Println("Request failed")
 		} else {
 			if res.Map != nil || len(res.ListMap) > 0 {
-				bot.SendTelegramMessage(cfg, "Maybe RTX to buy! Run!")
+				telegramBot.Broadcast("Maybe RTX to buy! Run!")
 			}
 		}
 
