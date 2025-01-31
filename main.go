@@ -35,8 +35,9 @@ func main() {
 
 	for {
 		res, err := bot.CheckAPI()
-		if err == nil {
+		if err != nil {
 			fmt.Println("Request failed")
+			fmt.Println(err)
 		} else {
 			fmt.Println(res)
 			if res.Map != nil || len(res.ListMap) > 0 {
@@ -44,7 +45,8 @@ func main() {
 			}
 		}
 
-		sleepDuration := time.Duration(rand.Intn(5-1+1)+1) * time.Minute
+		// Sleep at least 1 minute, up to 6 minutes
+		sleepDuration := time.Duration(rand.Intn(300)+60) * time.Second
 		fmt.Println("Sleeping for", sleepDuration)
 		time.Sleep(sleepDuration)
 	}

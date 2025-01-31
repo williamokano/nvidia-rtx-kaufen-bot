@@ -1,16 +1,12 @@
 package bot
 
 import (
-	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-
-	"golang.org/x/net/http2"
+	"time"
 )
 
 func CheckAPI() (APIResponse, error) {
@@ -35,29 +31,32 @@ func CheckAPI() (APIResponse, error) {
 		return response, fmt.Errorf("error creating request: %w", err)
 	}
 
-	// Add some random header to appear more generic, coming from browser
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+	// Set headers to avoid nvidia block... cuz... cuz... couscous
 	req.Header.Set("Accept", "application/json, text/javascript, */*; q=0.01")
-	req.Header.Set("Referer", "https://www.nvidia.com/de-de/geforce/graphics-cards/50-series/rtx-5090/")
-	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("Accept-Language", "en,pt-BR;q=0.9,pt;q=0.8,en-US;q=0.7,ja;q=0.6")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("DNT", "1")
+	req.Header.Set("Origin", "https://marketplace.nvidia.com")
+	req.Header.Set("Priority", "u=1, i")
+	req.Header.Set("Referer", "https://marketplace.nvidia.com/")
+	req.Header.Set("Sec-CH-UA", `"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"`)
+	req.Header.Set("Sec-CH-UA-Mobile", "?0")
+	req.Header.Set("Sec-CH-UA-Platform", `"Linux"`)
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+	req.Header.Set("Sec-Fetch-Mode", "cors")
+	req.Header.Set("Sec-Fetch-Site", "same-site")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36")
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return response, fmt.Errorf("error creating cookie jar", err)
+		return response, fmt.Errorf("error creating cookie jar: %w", err)
 	}
 
 	// create http2 client
 	client := &http.Client{
-		Transport: &http2.Transport{
-			AllowHTTP: true,
-			TLSClientConfig: &tls.Config{
-				// Enable TLS renegotiation
-				Renegotiation: tls.RenegotiateOnceAsClient,
-				// You might need these depending on the server
-				InsecureSkipVerify: true, // Remove in production!
-				MaxVersion:         tls.VersionTLS13,
-				MinVersion:         tls.VersionTLS12,
-			},
+		Timeout: 10 * time.Second, // Set a timeout
+		Transport: &http.Transport{
+			ForceAttemptHTTP2: true, // Ensure HTTP/2 is used
 		},
 		Jar: jar,
 	}
@@ -72,22 +71,23 @@ func CheckAPI() (APIResponse, error) {
 		return response, fmt.Errorf("error fetching API: %d %s", resp.StatusCode, resp.Status)
 	}
 
-	var responseBuffer []byte
-	teeReader := io.TeeReader(resp.Body, bytes.NewBuffer(responseBuffer))
-
-	body, err := io.ReadAll(teeReader)
-	if err == nil {
-		fmt.Println("Response Body:", string(body))
-	}
-
-	err = json.NewDecoder(bytes.NewReader(responseBuffer)).Decode(&response)
+	//var responseBuffer []byte
+	//teeReader := io.TeeReader(resp.Body, bytes.NewBuffer(responseBuffer))
+	//
+	//body, err := io.ReadAll(teeReader)
+	//if err == nil {
+	//	fmt.Println("Response Body:", string(body))
+	//}
+	//
+	//err = json.NewDecoder(bytes.NewReader(responseBuffer)).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
 		return response, fmt.Errorf("error parsing API: %w", err)
 	}
 
 	// Ensure list is empty
 	if response.ListMap == nil {
-		response.ListMap = make([]any, 0)
+		response.ListMap = make([]Product, 0)
 	}
 
 	return response, nil
