@@ -33,6 +33,8 @@ func main() {
 
 	var telegramBot = bot.NewBot(botToken, subscribersList)
 
+	telegramBot.Broadcast("Bot started...")
+
 	for {
 		res, err := bot.CheckAPI()
 		if err != nil {
