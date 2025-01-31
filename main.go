@@ -38,6 +38,7 @@ func main() {
 		if err == nil {
 			fmt.Println("Request failed")
 		} else {
+			fmt.Println(res)
 			if res.Map != nil || len(res.ListMap) > 0 {
 				telegramBot.Broadcast("Maybe RTX to buy! Run!")
 			}
